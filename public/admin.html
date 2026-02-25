@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Visitor Logs</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+</head>
+
+<body style="display: block; overflow-y: auto; background: #0b0f1a;">
+    <div class="admin-container">
+        <h1>Visitor Analytics Dashboard</h1>
+        <p>Detailed logs of all link clicks and visitor data.</p>
+
+        <div style="overflow-x: auto;">
+            <table id="logs-table">
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Location</th>
+                        <th>ISP</th>
+                        <th>Device & OS</th>
+                        <th>Resolution</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-body">
+                    <!-- Data will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function fetchLogs() {
+            try {
+                const res = await fetch('/api/get-visitors');
+                const data = await res.json();
+                const tableBody = document.getElementById('logs-body');
+
+                tableBody.innerHTML = '';
+
+                data.forEach(log => {
+                    const row = document.createElement('tr');
+                    const time = new Date(log.visit_time).toLocaleString();
+
+                    row.innerHTML = `
+                        <td><strong>${log.ip_address}</strong></td>
+                        <td>${log.city}, ${log.state}, ${log.country}</td>
+                        <td><span class="badge">${log.isp || 'N/A'}</span></td>
+                        <td>
+                            <div>${log.browser_name}</div>
+                            <div style="font-size: 0.8rem; color: #94a3b8;">${log.operating_system} (${log.device_type})</div>
+                        </td>
+                        <td>${log.screen_resolution}</td>
+                        <td style="font-size: 0.9rem;">${time}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error fetching logs:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchLogs);
+        // Refresh every 30 seconds
+        setInterval(fetchLogs, 30000);
+    </script>
+</body>
+
+</html>
