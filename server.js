@@ -11,9 +11,9 @@ const PORT = process.env.PORT || 3001;
 
 console.log('--- Startup Diagnostics ---');
 console.log(`Current Time: ${new Date().toLocaleString()}`);
-console.log(`Working Directory: ${process.cwd()}`);
 console.log(`Environment PORT: ${process.env.PORT || 'not set'}`);
-console.log(`Using PORT: ${PORT}`);
+console.log(`Environment DB_HOST: ${process.env.DB_HOST || 'NOT SET (Defaulting to localhost)'}`);
+console.log(`Environment DB_USER: ${process.env.DB_USER || 'NOT SET'}`);
 console.log('---------------------------');
 
 // Middleware
@@ -21,45 +21,46 @@ app.use(cors());
 app.use(express.json());
 
 // Database Connection and Setup
-const db = mysql.createConnection({
+const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 3306,
     user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || ''
-});
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'visitor_tracker',
+    connectTimeout: 10000 // 10 second timeout for remote hosts
+};
+
+console.log(`[DB Config] Attempting to connect to ${dbConfig.host}:${dbConfig.port} as ${dbConfig.user}`);
+
+const db = mysql.createConnection(dbConfig);
 
 db.connect((err) => {
     if (err) {
-        console.error('Error connecting to MySQL:', err);
+        console.error('CRITICAL: Error connecting to MySQL:', err);
+        console.error('Full Error Object:', JSON.stringify(err, null, 2));
         return;
     }
-    console.log('Connected to MySQL server.');
+    console.log('--- Database Connected Successfully ---');
 
-    db.query(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME || 'visitor_tracker'}`, (err) => {
-        if (err) return console.error('Error creating database:', err);
-        
-        db.changeUser({ database: process.env.DB_NAME || 'visitor_tracker' }, (err) => {
-            if (err) return console.error('Error switching database:', err);
-
-            const createTableSql = `
-                CREATE TABLE IF NOT EXISTS visitors (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    ip_address VARCHAR(45),
-                    country VARCHAR(100),
-                    state VARCHAR(100),
-                    city VARCHAR(100),
-                    isp VARCHAR(255),
-                    browser_name VARCHAR(100),
-                    operating_system VARCHAR(100),
-                    device_type VARCHAR(50),
-                    screen_resolution VARCHAR(50),
-                    visit_time DATETIME DEFAULT CURRENT_TIMESTAMP
-                )
-            `;
-            db.query(createTableSql, (err) => {
-                if (err) console.error('Error creating table:', err);
-                else console.log('Database and table ready.');
-            });
-        });
+    // Create Table if not exists (database already selected in config)
+    const createTableSql = `
+        CREATE TABLE IF NOT EXISTS visitors (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            ip_address VARCHAR(45),
+            country VARCHAR(100),
+            state VARCHAR(100),
+            city VARCHAR(100),
+            isp VARCHAR(255),
+            browser_name VARCHAR(100),
+            operating_system VARCHAR(100),
+            device_type VARCHAR(50),
+            screen_resolution VARCHAR(50),
+            visit_time DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    `;
+    db.query(createTableSql, (err) => {
+        if (err) console.error('Error creating table:', err);
+        else console.log('Visitors table is ready.');
     });
 });
 
