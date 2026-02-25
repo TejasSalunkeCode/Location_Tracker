@@ -66,11 +66,26 @@ db.connect((err) => {
 // Helper to call Python script
 const getGeoInfo = (ip) => {
     return new Promise((resolve) => {
-        // Use 'python' or 'python3' - try to detect or just use 'python'
-        exec(`python get_location.py ${ip}`, (error, stdout) => {
+        // Try 'python' first, fallback to 'python3' (common on Linux/Render)
+        const cmd = process.platform === 'win32' ? `python get_location.py ${ip}` : `python3 get_location.py ${ip}`;
+        
+        exec(cmd, (error, stdout) => {
             if (error) {
-                console.error(`Exec error: ${error}`);
-                return resolve(null);
+                // If 'python3' also fails or was the primary, try the other as a fallback
+                const fallbackCmd = cmd.includes('python3') ? `python get_location.py ${ip}` : `python3 get_location.py ${ip}`;
+                exec(fallbackCmd, (fallbackError, fallbackStdout) => {
+                    if (fallbackError) {
+                        console.error(`Both python/python3 failed: ${fallbackError}`);
+                        return resolve(null);
+                    }
+                    try {
+                        const data = JSON.parse(fallbackStdout);
+                        resolve(data.success ? data : null);
+                    } catch (e) {
+                        resolve(null);
+                    }
+                });
+                return;
             }
             try {
                 const data = JSON.parse(stdout);
